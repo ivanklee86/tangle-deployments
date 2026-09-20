@@ -3,13 +3,10 @@ name: Bump chart version
 on:
   repository_dispatch:
     types: [tangle-release]
-  pull_request:
-    types: [closed]
 
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 
 concurrency:
   group: bump-chart-version
@@ -17,7 +14,6 @@ concurrency:
 
 jobs:
   bump:
-    if: github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -68,25 +64,13 @@ jobs:
           labels: automated
 
       - name: Enable auto-merge
+        # The PAT, not GITHUB_TOKEN: GitHub also suppresses the pull_request:closed /
+        # push events that would otherwise fire once this merge completes when the merge
+        # itself is GITHUB_TOKEN-authenticated (same anti-recursion rule that requires the
+        # PAT above for opening the PR) -- which would leave release.yaml's `push: main`
+        # trigger never firing for this PR's own merge. A PAT-authenticated merge behaves
+        # like an ordinary user merge and triggers it normally.
         if: steps.pr.outputs.pull-request-operation == 'created'
         run: gh pr merge --auto --squash "${{ steps.pr.outputs.pull-request-number }}"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # release.yaml's `push: main` trigger does not fire for this PR's own merge: GitHub
-  # suppresses push-triggered workflow runs that result from a GITHUB_TOKEN-authenticated
-  # write, to prevent recursive triggering. workflow_dispatch is explicitly exempted from
-  # that suppression, so this job dispatches release.yaml directly once the bump PR
-  # actually merges (a human merging a normal PR still triggers it the ordinary way, via
-  # `push`).
-  trigger-release:
-    if: >
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.head.ref == 'chore/bump-chart-appversion'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger chart release
-        run: gh workflow run release.yaml --repo ${{ github.repository }} --ref main
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CHART_BUMP_PAT }}
