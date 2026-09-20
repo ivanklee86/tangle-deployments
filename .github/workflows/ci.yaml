@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Helm
+        uses: Azure/setup-helm@v5.0.1
+        with:
+          version: "v4.3.0"
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin kubeconform
+
+      - name: Install Task
+        uses: arduino/setup-task@v3.0.0
+        with:
+          version: "3.53.1"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: task template:default
+      - run: task tests
