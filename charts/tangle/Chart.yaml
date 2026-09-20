@@ -1,9 +1,9 @@
 apiVersion: v2
-appVersion: "0.2.0"
+appVersion: "0.2.2"
 name: tangle
 description: Tangle is a helper app that makes using multiple ArgoCDs in a hub & spoke model fun and easy!.
 type: application
-version: 0.0.10
+version: 0.0.11
 home: https://github.com/ivanklee86/tangle
 sources:
   - https://github.com/ivanklee86/tangle
