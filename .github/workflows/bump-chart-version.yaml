@@ -48,6 +48,13 @@ jobs:
         id: pr
         uses: peter-evans/create-pull-request@v8.1.1
         with:
+          # A PAT, not the default GITHUB_TOKEN: a PR authored by github-actions[bot] has
+          # author_association "CONTRIBUTOR" on this public repo, which GitHub gates behind
+          # manual approval before any pull_request-triggered workflow (our "chart" CI
+          # check) will run at all -- defeating the point of auto-merging this PR. Using a
+          # PAT makes the PR's author the token owner (an OWNER/COLLABORATOR), which isn't
+          # gated.
+          token: ${{ secrets.CHART_BUMP_PAT }}
           commit-message: "chore: bump chart to appVersion ${{ steps.bump.outputs.app_version }}"
           title: "chore: bump chart to appVersion ${{ steps.bump.outputs.app_version }}"
           body: |
