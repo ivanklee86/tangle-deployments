@@ -5,7 +5,7 @@ metadata:
 data:
   tangle.yaml: |-
     listWorkers: {{ .Values.tangle.listWorkers }}
-    manifestWorkers: {{ .Values.tangle.manifestWorkers }}
+    manifestsWorkers: {{ .Values.tangle.manifestsWorkers }}
     hardRefreshWorkers: {{ .Values.tangle.hardRefreshWorkers }}
     argocds:
     {{- toYaml .Values.tangle.argoCDs | nindent 6 }}
