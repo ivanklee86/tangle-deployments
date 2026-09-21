@@ -32,13 +32,47 @@ jobs:
           CHART_FILE="charts/tangle/Chart.yaml"
 
           CURRENT_CHART_VERSION="$(yq '.version' "$CHART_FILE")"
-          NEW_CHART_VERSION="$(echo "$CURRENT_CHART_VERSION" | awk -F. -v OFS=. '{$NF+=1; print}')"
+          # Minor bump, not patch: a tangle release is a new set of app features, so the
+          # chart revision that ships it gets a minor bump (0.0.16 -> 0.1.0). Patch bumps
+          # are left for hand-made chart-only fixes.
+          NEW_CHART_VERSION="$(echo "$CURRENT_CHART_VERSION" | awk -F. -v OFS=. '{$2+=1; $3=0; print}')"
 
           yq -i ".appVersion = \"${APP_VERSION}\"" "$CHART_FILE"
           yq -i ".version = \"${NEW_CHART_VERSION}\"" "$CHART_FILE"
 
           echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
           echo "chart_version=${NEW_CHART_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${RAW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump values.yaml image tag
+        # Chart.yaml alone isn't enough: values.yaml pins image.tag explicitly, which
+        # overrides the deployment template's `| default .Chart.AppVersion` fallback, so
+        # bumping appVersion on its own leaves the chart deploying the *previous* image.
+        # The raw tag is used here, `v` prefix and all -- ghcr.io/ivanklee86/tangle
+        # publishes only v-prefixed tags, so appVersion ("0.3.0") is not a pullable tag.
+        env:
+          IMAGE_TAG: ${{ steps.bump.outputs.image_tag }}
+        run: |
+          VALUES_FILE="charts/tangle/values.yaml"
+
+          # A targeted edit of the `tag:` line inside the top-level `image:` block, rather
+          # than `yq -i`: yq rewrites the whole document, dropping every blank line and
+          # re-indenting this file's commented-out example blocks -- a ~60 line diff for a
+          # one-line change.
+          awk -v tag="$IMAGE_TAG" '
+            /^[^[:space:]#]/ { in_image = ($0 ~ /^image:[[:space:]]*$/) }
+            in_image && /^[[:space:]]+tag:[[:space:]]/ { sub(/tag:.*/, "tag: \"" tag "\"") }
+            { print }
+          ' "$VALUES_FILE" > "$VALUES_FILE.tmp"
+          mv "$VALUES_FILE.tmp" "$VALUES_FILE"
+
+          # Verify with yq, so a values.yaml restructure that the awk above no longer
+          # matches fails the run instead of quietly opening a PR that bumps nothing.
+          ACTUAL_TAG="$(yq '.image.tag' "$VALUES_FILE")"
+          if [ "$ACTUAL_TAG" != "$IMAGE_TAG" ]; then
+            echo "::error::expected image.tag to be ${IMAGE_TAG}, got ${ACTUAL_TAG}"
+            exit 1
+          fi
 
       - name: Open pull request
         id: pr
@@ -59,6 +93,7 @@ jobs:
 
             - `appVersion`: `${{ steps.bump.outputs.app_version }}`
             - `version`: `${{ steps.bump.outputs.chart_version }}`
+            - `image.tag`: `${{ steps.bump.outputs.image_tag }}`
           branch: chore/bump-chart-appversion
           delete-branch: true
           labels: automated
