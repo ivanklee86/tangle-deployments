@@ -1,6 +1,9 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - 'main'
   pull_request:
 
 permissions:
@@ -10,7 +13,8 @@ jobs:
   chart:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout code
+        uses: actions/checkout@v7
 
       - name: Set up Helm
         uses: Azure/setup-helm@v5.0.1
@@ -28,5 +32,11 @@ jobs:
           version: "3.53.1"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: task template:default
-      - run: task tests
+      - name: Run template smoke check
+        run: task template:default
+
+      - name: Run example manifest tests
+        run: task tests
+
+      - name: Run chart-version bump script tests
+        run: task test:chart-version

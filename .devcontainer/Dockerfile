@@ -1,47 +1,22 @@
-# See here for image contents: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/go/.devcontainer/Dockerfile
-ARG VARIANT="1"
-FROM mcr.microsoft.com/devcontainers/go:1-${VARIANT}
+FROM ghcr.io/ivanklee86/devcontainer/devops:main
 
-# Setup
-ENV GOTOOLCHAIN=auto
+ARG TARGETARCH
 
-ENV HOME="/home/vscode"
-WORKDIR /home/vscode
+USER root
 
-# Install standard packages
-RUN apt-get update && \
-        # General purpose tools
-    apt-get install -y \
-        # Python
-        libsasl2-dev libldap2-dev libssl-dev libsnmp-dev libffi-dev \
-        libncurses-dev libsqlite3-dev libbz2-dev libreadline-dev liblzma-dev tzdata tk-dev graphviz;
+# Helm chart tooling (chart-repo specific, not centralized)
+RUN ARCH=$([ "${TARGETARCH}" = "amd64" ] && echo "x86_64" || echo "arm64") && \
+    curl -fsSL "https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_${ARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin helm-docs
+
+RUN curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin kubeconform
+
+# Node, for the semver-based chart version math in scripts/. Copied from the official LTS
+# image (Krypton/24.x) rather than apt, which lags well behind on trixie.
+COPY --from=node:24.21.0-trixie-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:24.21.0-trixie-slim /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 USER vscode
-
-# Install Python
-RUN git clone --depth=1 https://github.com/pyenv/pyenv.git .pyenv
-ENV PYENV_ROOT="/home/vscode/.pyenv"
-ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:${HOME}/.local/bin:${PATH}"
-RUN git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
-
-ARG PYTHON_VERSION="3.13"
-RUN pyenv install ${PYTHON_VERSION} && \
-    pyenv global ${PYTHON_VERSION}
-
-# Install tools
-# - Tools
-RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d
-COPY --from=bitnami/kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin
-COPY --from=alpine/helm /usr/bin/helm /usr/local/bin
-
-# - Golang
-RUN go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
-RUN go install github.com/yannh/kubeconform/cmd/kubeconform@latest
-
-# Modify dotfile
-RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
-RUN echo 'export PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-RUN echo 'export PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
-RUN echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
-RUN echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.zshrc

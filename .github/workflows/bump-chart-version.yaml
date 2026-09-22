@@ -24,6 +24,12 @@ jobs:
             https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64
           chmod +x /usr/local/bin/yq
 
+      - name: Install helm-docs
+        run: |
+          curl -sSL \
+            https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_x86_64.tar.gz \
+            | tar -xz -C /usr/local/bin helm-docs
+
       - name: Bump Chart.yaml
         id: bump
         run: |
@@ -31,17 +37,22 @@ jobs:
           APP_VERSION="${RAW_VERSION#v}"
           CHART_FILE="charts/tangle/Chart.yaml"
 
+          PREV_APP_VERSION="$(yq '.appVersion' "$CHART_FILE")"
           CURRENT_CHART_VERSION="$(yq '.version' "$CHART_FILE")"
-          # Minor bump, not patch: a tangle release is a new set of app features, so the
-          # chart revision that ships it gets a minor bump (0.0.16 -> 0.1.0). Patch bumps
-          # are left for hand-made chart-only fixes.
-          NEW_CHART_VERSION="$(echo "$CURRENT_CHART_VERSION" | awk -F. -v OFS=. '{$2+=1; $3=0; print}')"
+
+          # The chart bump mirrors the app bump (major/minor/patch), so the chart version
+          # signals how significant the release it ships is. See scripts/next-chart-version.sh.
+          BUMP="$(scripts/next-chart-version.sh \
+            "$PREV_APP_VERSION" "$APP_VERSION" "$CURRENT_CHART_VERSION")"
+          RELEASE_TYPE="${BUMP%% *}"
+          NEW_CHART_VERSION="${BUMP##* }"
 
           yq -i ".appVersion = \"${APP_VERSION}\"" "$CHART_FILE"
           yq -i ".version = \"${NEW_CHART_VERSION}\"" "$CHART_FILE"
 
           echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
           echo "chart_version=${NEW_CHART_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_type=${RELEASE_TYPE}" >> "$GITHUB_OUTPUT"
           echo "image_tag=${RAW_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Bump values.yaml image tag
@@ -74,6 +85,13 @@ jobs:
             exit 1
           fi
 
+      - name: Regenerate chart README
+        # helm-docs renders the Version/AppVersion badges (and any other Chart.yaml-derived
+        # content) in charts/tangle/README.md, so it needs to re-run whenever Chart.yaml
+        # changes -- otherwise the badges keep showing the pre-bump versions.
+        run: helm-docs
+        working-directory: charts/tangle
+
       - name: Open pull request
         id: pr
         uses: peter-evans/create-pull-request@v8.1.1
@@ -92,7 +110,7 @@ jobs:
             [`tangle` ${{ github.event.client_payload.version }}](https://github.com/ivanklee86/tangle/releases/tag/${{ github.event.client_payload.version }}).
 
             - `appVersion`: `${{ steps.bump.outputs.app_version }}`
-            - `version`: `${{ steps.bump.outputs.chart_version }}`
+            - `version`: `${{ steps.bump.outputs.chart_version }}` (`${{ steps.bump.outputs.release_type }}` bump)
             - `image.tag`: `${{ steps.bump.outputs.image_tag }}`
           branch: chore/bump-chart-appversion
           delete-branch: true
