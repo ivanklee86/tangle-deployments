@@ -1,4 +1,4 @@
-# tangle-helm
+# tangle-deployments
 
 Deployment artifcats (just Helm charts for now) for `tangle`!  Checkout the [main repository](https://github.com/ivanklee86/tangle) for more information.
 

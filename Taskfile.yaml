@@ -26,3 +26,7 @@ tasks:
     dir: charts/tangle
     cmds:
       - helm-docs
+
+  test:chart-version:
+    cmds:
+      - ./scripts/next-chart-version.test.sh
