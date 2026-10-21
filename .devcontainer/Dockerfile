@@ -14,8 +14,8 @@ RUN curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v0.8.0/ku
 
 # Node, for the semver-based chart version math in scripts/. Copied from the official LTS
 # image (Krypton/24.x) rather than apt, which lags well behind on trixie.
-COPY --from=node:24.22.0-trixie-slim /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:24.22.0-trixie-slim /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+COPY --from=node:24.22.1-trixie-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:24.22.1-trixie-slim /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
