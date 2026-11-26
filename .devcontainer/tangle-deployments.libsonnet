@@ -3,7 +3,6 @@
   customizations+: {
     vscode+: {
       extensions+: [
-        "github.vscode-github-actions",
       ],
     },
   },

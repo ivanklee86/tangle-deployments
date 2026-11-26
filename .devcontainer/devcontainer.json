@@ -8,18 +8,19 @@
       "vscode": {
          "extensions": [
             "anthropic.claude-code",
+            "github.vscode-github-actions",
             "GitHub.copilot",
             "hashicorp.hcl",
             "ms-azuretools.vscode-docker",
             "redhat.vscode-yaml",
             "tamasfe.even-better-toml",
-            "task.vscode-task",
-            "github.vscode-github-actions"
+            "task.vscode-task"
          ],
          "settings": {
             "yaml.schemas": {
                "https://taskfile.dev/schema.json": [
                   "**/Taskfile.yml",
+                  "**/Taskfile.yaml",
                   "tasks/**"
                ]
             }
@@ -36,7 +37,8 @@
       "source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind,consistency=cached",
       "source=${localEnv:HOME}/.kube,target=/home/vscode/.kube,type=bind,consistency=cached",
       "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-      "source=${localEnv:HOME}/.ssh/known_hosts,target=/home/vscode/.ssh/known_hosts,type=bind,consistency=cached,readonly"
+      "source=${localEnv:HOME}/.ssh/known_hosts,target=/home/vscode/.ssh/known_hosts,type=bind,consistency=cached,readonly",
+      "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached"
    ],
    "name": "tangle-deployments",
    "postCreateCommand": {
